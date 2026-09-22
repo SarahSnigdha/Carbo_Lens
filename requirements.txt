@@ -1,0 +1,11 @@
+earthengine-api
+geemap
+pandas
+numpy
+geopandas
+scikit-learn
+shap
+matplotlib
+requests
+pyyaml
+python-dotenv
