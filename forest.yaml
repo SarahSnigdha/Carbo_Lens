@@ -1,0 +1,66 @@
+# config/forest.yaml  (DRAFT, 2026-10-30)
+# Source keys refer to paper IDs (P1..P15) in docs/research_forest.md.
+# Weights sum to 1.0. The literature supports the DIRECTION and rough ordering of
+# each indicator, not exact weights; weights marked UNSUPPORTED need sensitivity analysis.
+
+type_id: forest
+display_name: Forest Restoration / Afforestation
+
+indicators:
+  - id: ndvi_anom
+    weight: 0.15        # UNSUPPORTED value. Kept below NBR because NDVI scored 75.86% vs NBR 91.38% for burn detection [P3 Singh 2021]. Anomaly = per-date z-score [P13].
+    direction: negative
+
+  - id: nbr_anom
+    weight: 0.20        # Switched ON: NBR beat NDVI (91.38% vs 75.86%) [P3]; dNBR best of 5 indices, 90.7% accuracy [P2]. Caveat: dNBR only 41.67-47.44% in [P4 Konkathi 2021]. Weight UNSUPPORTED.
+    direction: negative
+
+  - id: fire_count_5km_90d
+    weight: 0.25        # Fire detections are the dated trigger. March holds ~70% of central-India fires [P9 Jain 2021]; fire correlated with dry days/temp [P7]. Weight UNSUPPORTED.
+    direction: positive
+
+  - id: spi_3
+    weight: 0.15        # Short windows (3 and 6) relate best to fire [P11 EGU2018; P10 Riley 2013]. Non-Indian evidence. Test SPI-1 and SPI-6 too. Weight UNSUPPORTED.
+    direction: negative
+
+  - id: consec_dry_days
+    weight: 0.10        # Fire counts correlate with average dry days, r=0.75 [P7]. No published "N days" cut-off found: UNSUPPORTED, needs sensitivity analysis.
+    direction: positive
+
+  - id: temp_anom_c
+    weight: 0.05        # Fire correlates with max temperature, r=0.76 [P7]; high daily temperature raises fire-day odds [P6 Mondal 2014]. Weight UNSUPPORTED.
+    direction: positive
+
+  - id: loss_ha_cumulative
+    weight: 0.10        # UNSUPPORTED. No source gives a weight; kept as a lagging confirmation signal.
+    direction: positive
+
+  - id: rh_anom
+    weight: 0.00        # PROPOSED addition. Relative humidity was a top ignition factor at Similipal [P8 Singha 2024] and a fire-day predictor [P6]. Needs ERA5 RH in the pipeline; if added, take ~0.05 from fire_count_5km_90d / loss_ha_cumulative and re-sum to 1.0.
+    direction: negative
+
+# Thresholds used to decide "disturbed" (values from the literature, ranges are for sensitivity tests)
+thresholds:
+  dnbr:
+    unburned_max: 0.099         # [P1 Almora 2021, Fire Ecology 2024]
+    low: [0.10, 0.269]          # [P1]
+    moderate_low: [0.27, 0.439] # [P1]
+    moderate_high: [0.44, 0.659] # [P1]
+    high: [0.66, 1.300]         # [P1]
+    disturbed_min: 0.27         # Proposed rule: moderate-low or worse. Bands vary by sensor/site [P5], so test 0.17-0.37.
+  ndvi_zscore:
+    disturbed_below: -1.5       # UNSUPPORTED. No published NDVI-drop cut-off found for dry deciduous forest; test -1.0, -1.5, -2.0. Method from [P13].
+  spi:
+    drought_below: -1.0         # McKee et al. 1993 convention (cited in an AMS preprint); [P10, P11] for window choice.
+  anomaly_probability_min: 0.9  # [P12 Chavez 2019]: pixels with probability < 0.9 not counted as true anomaly.
+
+baseline:
+  method: per_site_monthly_median
+  years: 5
+  exclude_years: [2018, 2021]   # Both confirmed Similipal fire years in our FIRMS table (730 and 1,013 March detections) and MODIS maxima in [Ranjan 2023]. 2023 (469) is also elevated; consider adding.
+  note: "Compare each date to its own historical distribution, not to the previous month [P12, P13]."
+
+recovery_window_months: 12      # UNSUPPORTED. No dry deciduous recovery time retrieved. [P14] says deciduous forest recovers slowly; a review gives Sal 1-3 yrs. Test 12 / 24 / 36. Check [P15] full text.
+
+preprocessing:
+  seasonal_leaf_fall_handling: "per_date_baseline_zscore"  # NDVI/NBR anomaly vs same-date history divided by that date's std [P13]; keep only anomalies with probability >= 0.9 [P12].
